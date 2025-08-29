@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard In-Out (Table View)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <style>
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+    }
+
+    /* Status Dot on Image */
+    .image-container {
+      position: relative;
+      display: inline-block;
+    }
+
+    .status-dot {
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
+    }
+
+    .status-dot.green {
+      background-color: #28a745;
+    }
+
+    /* เข้างาน */
+    .status-dot.red {
+      background-color: #dc3545;
+    }
+
+    /* ออกงาน */
+    .status-dot.yellow {
+      background-color: #ffab00;
+    }
+
+    /* ระหว่างวัน */
+
+    /* Custom Colors for Status in Popup */
+    .status-green {
+      background-color: #e7f4e8;
+      color: #28a745;
+    }
+
+    .status-red {
+      background-color: #fce8e6;
+      color: #dc3545;
+    }
+
+    .status-yellow {
+      background-color: #fff8e1;
+      color: #ffab00;
+    }
+
+    /* Popup Overlay */
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      padding: 1rem;
+    }
+
+    .popup-content {
+      position: relative;
+      background: white;
+      padding: 2rem;
+      border-radius: 12px;
+      max-width: 500px;
+      width: 100%;
+      max-height: 90vh;
+      overflow-y: auto;
+      text-align: left;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+    }
+
+    #closePopup {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      background: #f1f1f1;
+      color: #555;
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+      transition: background 0.2s ease, color 0.2s ease;
+    }
+
+    #closePopup:hover {
+      background: #e0e0e0;
+      color: #000;
+    }
+  </style>
+</head>
+
+<body class="bg-gray-100 text-base p-4 sm:p-6">
+
+  <div class="container mx-auto max-w-7xl">
+
+    <!-- Header and Filters -->
+    <div class="bg-white rounded-lg shadow-md p-4 mb-6">
+      <div class="flex flex-col sm:flex-row gap-2">
+        <!-- Search Input -->
+        <div class="relative flex-grow">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+            <i class="fas fa-search text-gray-400"></i>
+          </span>
+          <input id="filterSearch" type="search"
+            class="w-full rounded-md border-gray-300 p-3 pl-10 focus:border-black focus:ring-black"
+            placeholder="ค้นหาชื่อ หรือ รหัสพนักงาน..." />
+        </div>
+        <!-- Date Filter -->
+        <input id="filterDate" type="date"
+          class="w-full sm:w-auto rounded-md border-gray-300 p-3 focus:border-black focus:ring-black" />
+      </div>
+    </div>
+
+    <!-- Table Container -->
+    <div id="table-container" class="bg-white rounded-lg shadow overflow-x-auto">
+      <table class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-50">
+          <tr>
+            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider w-20">รูป</th>
+            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">พนักงาน</th>
+            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">การกระทำ</th>
+          </tr>
+        </thead>
+        <tbody id="data-body" class="bg-white divide-y divide-gray-200">
+          <!-- Data rows will be injected here -->
+        </tbody>
+      </table>
+    </div>
+
+    <!-- No data message -->
+    <div id="no-data" class="hidden text-center py-10 bg-white rounded-lg shadow">
+      <p class="text-gray-500 text-lg">ไม่พบข้อมูลที่ตรงกับตัวกรอง</p>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading" class="text-center py-10">
+      <svg class="animate-spin h-8 w-8 text-black mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none"
+        viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor"
+          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+        </path>
+      </svg>
+      <p class="mt-2 text-gray-600">กำลังโหลดข้อมูล...</p>
+    </div>
+
+    <!-- Pagination -->
+    <div id="pagination-controls"
+      class="bg-white rounded-lg shadow-md p-4 flex items-center justify-between mt-6 text-sm">
+      <p id="rowsInfo" class="text-gray-700">กำลังโหลด...</p>
+      <div class="flex gap-2">
+        <button id="prevPageBtn"
+          class="bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fas fa-arrow-left"></i>
+        </button>
+        <button id="nextPageBtn"
+          class="bg-black text-white py-2 px-4 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold disabled:opacity-50 disabled:cursor-not-allowed">
+          <i class="fas fa-arrow-right"></i>
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Popup for Detailed View -->
+  <div id="popup" class="popup-overlay">
+    <div class="popup-content">
+      <span id="closePopup">×</span>
+      <div id="popup-details">
+        <!-- Detailed content will be injected here -->
+      </div>
+    </div>
+  </div>
+
+  <script src="Config.js"></script>
+  <script>
+    let currentPage = 1,
+      totalPages = 1,
+      fullData = [];
+
+    const ROWS_PER_PAGE = 15;
+
+    function formatDateTime(str) {
+      if (!str) return { date: '', time: '', full: '' };
+      let d = new Date(str);
+      if (isNaN(d.getTime())) return { date: 'Invalid Date', time: '', full: '' };
+
+      const pad = n => ('0' + n).slice(-2);
+      const date = `${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}`;
+      const time = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      return { date, time, full: d };
+    }
+
+    function getStatusClass(s) {
+      return s === 'เข้างาน' ? 'status-green' :
+        s === 'ออกงาน' ? 'status-red' :
+          s === 'ระหว่างวัน' ? 'status-yellow' :
+            'bg-gray-200 text-gray-800';
+    }
+
+    async function fetchDataAndDisplay() {
+      const loadingEl = document.getElementById('loading');
+      const tableContainer = document.getElementById('table-container');
+      const paginationControls = document.getElementById('pagination-controls');
+
+      loadingEl.style.display = 'block';
+      tableContainer.style.display = 'none';
+      paginationControls.style.display = 'none';
+
+      try {
+        const res = await fetch(WEB_APP_URL);
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        let rawData = await res.json();
+
+        if (!Array.isArray(rawData) || rawData.length <= 1) {
+          throw new Error("No data found");
+        }
+
+        const header = rawData[0];
+        let dataRows = rawData.slice(1);
+
+        dataRows.sort((a, b) => new Date(b[0]) - new Date(a[0]));
+
+        fullData = [header, ...dataRows];
+
+        updateDisplay();
+      } catch (e) {
+        console.error("Error fetching data:", e);
+        loadingEl.innerHTML = `<p class="text-red-500">ไม่สามารถโหลดข้อมูลได้: ${e.message}</p>`;
+        document.getElementById('no-data').style.display = 'none';
+      } finally {
+        loadingEl.style.display = 'none';
+        paginationControls.style.display = 'flex';
+      }
+    }
+
+    function filterData(data) {
+      const searchTerm = document.getElementById('filterSearch').value.toLowerCase();
+      const filterDate = document.getElementById('filterDate').value;
+
+      return data.filter(item => {
+        if (!item || item.length < 9) return false;
+
+        const name = (item[2] || '').toLowerCase();
+        const id = (item[3] || '').toString();
+        const searchMatch = name.includes(searchTerm) || id.includes(searchTerm);
+
+        let dateMatch = true;
+        if (filterDate) {
+          const itemDate = new Date(item[0]);
+          const selectedDate = new Date(filterDate);
+          selectedDate.setMinutes(selectedDate.getMinutes() + selectedDate.getTimezoneOffset());
+          dateMatch = itemDate.getFullYear() === selectedDate.getFullYear() &&
+            itemDate.getMonth() === selectedDate.getMonth() &&
+            itemDate.getDate() === selectedDate.getDate();
+        }
+
+        return searchMatch && dateMatch;
+      });
+    }
+
+    function showDetailsPopup(item) {
+      const detailsContainer = document.getElementById('popup-details');
+      const f = formatDateTime(item[0]);
+      const statusClass = getStatusClass(item[4]);
+
+      detailsContainer.innerHTML = `
+                <div class="flex flex-col items-center">
+                    <img src="${item[1] || 'https://via.placeholder.com/100'}" alt="ภาพพนักงาน" class="h-24 w-24 rounded-full object-cover border-4 border-gray-200 mb-4">
+                    <h2 class="text-2xl font-bold text-gray-900">${item[2] || 'ไม่ระบุชื่อ'}</h2>
+                    <p class="text-gray-500 mb-4">รหัส: ${item[3] || '-'}</p>
+                    <div class="w-full mt-4 border-t pt-4">
+                        <div class="flex justify-between py-2 items-center">
+                            <span class="font-semibold text-gray-600">สถานะ:</span>
+                            <span class="px-3 py-1 text-sm font-semibold rounded-full ${statusClass}">${item[4] || '-'}</span>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <span class="font-semibold text-gray-600">วันที่:</span>
+                            <span class="text-gray-800">${f.date}</span>
+                        </div>
+                        <div class="flex justify-between py-2">
+                            <span class="font-semibold text-gray-600">เวลา:</span>
+                            <span class="text-gray-800">${f.time}</span>
+                        </div>
+                         <div class="flex justify-between py-2">
+                            <span class="font-semibold text-gray-600">สถานที่:</span>
+                            <span class="text-gray-800">${item[8] || '-'}</span>
+                        </div>
+                        <div class="flex flex-col text-left py-2">
+                            <span class="font-semibold text-gray-600 mb-1">หมายเหตุ:</span>
+                            <p class="text-gray-800 bg-gray-50 p-2 rounded">${item[5] || '-'}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+      document.getElementById('popup').style.display = 'flex';
+    }
+
+    function updateDisplay() {
+      const tableContainer = document.getElementById('table-container');
+      const tableBody = document.getElementById('data-body');
+      const noDataEl = document.getElementById('no-data');
+      tableBody.innerHTML = '';
+
+      const filtered = filterData(fullData.slice(1));
+
+      totalPages = Math.ceil(filtered.length / ROWS_PER_PAGE) || 1;
+      if (currentPage > totalPages) currentPage = totalPages;
+
+      const pageData = filtered.slice((currentPage - 1) * ROWS_PER_PAGE, currentPage * ROWS_PER_PAGE);
+
+      if (pageData.length === 0) {
+        tableContainer.style.display = 'none';
+        noDataEl.style.display = 'block';
+      } else {
+        tableContainer.style.display = 'block';
+        noDataEl.style.display = 'none';
+        renderTableRows(pageData);
+      }
+
+      function renderTableRows(dataToRender) {
+        dataToRender.forEach(item => {
+          const f = formatDateTime(item[0]);
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-gray-50';
+
+          let statusDotHtml = '';
+          const status = item[4];
+          let dotColorClass = '';
+
+          if (status === 'เข้างาน') {
+            dotColorClass = 'green';
+          } else if (status === 'ออกงาน') {
+            dotColorClass = 'red';
+          } else if (status === 'ระหว่างวัน') {
+            dotColorClass = 'yellow';
+          }
+
+          if (dotColorClass) {
+            statusDotHtml = `<div class="status-dot ${dotColorClass}"></div>`;
+          }
+
+          tr.innerHTML = `
+                        <td class="px-2 py-4 whitespace-nowrap text-center">
+                            <div class="image-container">
+                                <img src="${item[1] || 'https://via.placeholder.com/40'}" alt="ภาพ" class="h-10 w-10 rounded-full object-cover">
+                                ${statusDotHtml}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap">
+                            <div class="text-sm font-medium text-gray-900">${item[2] || 'ไม่ระบุชื่อ'}</div>
+                            <div class="text-sm text-gray-500 mt-1">
+                                <i class="far fa-calendar-alt text-gray-400 mr-1"></i>${f.date}
+                                <i class="far fa-clock text-gray-400 ml-2 mr-1"></i>${f.time}
+                            </div>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <button class="view-more-btn text-black hover:text-indigo-900 font-semibold">ดูเพิ่มเติม</button>
+                        </td>
+                    `;
+
+          tr.querySelector('.view-more-btn').addEventListener('click', () => showDetailsPopup(item));
+          tableBody.appendChild(tr);
+        });
+      }
+
+      document.getElementById('rowsInfo').textContent = `หน้า ${currentPage} / ${totalPages}`;
+      document.getElementById('prevPageBtn').disabled = currentPage === 1;
+      document.getElementById('nextPageBtn').disabled = currentPage === totalPages;
+    }
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      await fetchDataAndDisplay();
+      document.getElementById('closePopup').onclick = () => document.getElementById('popup').style.display = 'none';
+      document.getElementById('popup').onclick = e => {
+        if (e.target === e.currentTarget) document.getElementById('popup').style.display = 'none';
+      };
+      document.getElementById('filterSearch').addEventListener('input', () => { currentPage = 1; updateDisplay(); });
+      document.getElementById('filterDate').addEventListener('change', () => { currentPage = 1; updateDisplay(); });
+      document.getElementById('prevPageBtn').onclick = () => { if (currentPage > 1) { currentPage--; updateDisplay(); } };
+      document.getElementById('nextPageBtn').onclick = () => { if (currentPage < totalPages) { currentPage++; updateDisplay(); } };
+    });
+  </script>
+</body>
+
+</html>

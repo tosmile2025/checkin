@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>จัดการสมาชิก</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        /* General Body Font (Tailwind defaults to sans-serif, which is modern) */
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-base p-6">
+    <!-- Navigation to Dashboard -->
+    <div class="container mx-auto max-w-7xl mb-6">
+        <a href="Dashboardadmin.html" class="inline-block py-3 px-6 rounded-lg bg-black text-white font-semibold hover:bg-gray-800 transition duration-200 ease-in-out">
+            ← กลับสู่ Dashboard In-Out
+        </a>
+    </div>
+
+    <div class="container mx-auto max-w-7xl">
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h1 class="text-2xl font-bold text-gray-800 mb-6">จัดการข้อมูลสมาชิก</h1>
+
+            <!-- ส่วน Filter -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <div>
+                    <label for="filter-name" class="block text-sm font-medium text-gray-700 mb-1">ค้นหาตามชื่อ</label>
+                    <input type="text" id="filter-name" placeholder="พิมพ์ชื่อนักศึกษา" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                </div>
+                <div>
+                    <label for="filter-department" class="block text-sm font-medium text-gray-700 mb-1">ค้นหาตามแผนก</label>
+                    <input type="text" id="filter-department" placeholder="พิมพ์รหัสนักศึกษา" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                </div>
+                <div>
+                    <label for="filter-employeeID" class="block text-sm font-medium text-gray-700 mb-1">ค้นหาตามรหัสพนักงาน</label>
+                    <input type="text" id="filter-employeeID" placeholder="พิมพ์ชั้นปีนักศึกษา" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                </div>
+                <div class="flex flex-col">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รีเซต</label>
+                    <button id="reset-leaves" class="bg-black text-white py-2.5 px-4 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold">วันลา</button>
+                </div>
+                <div class="flex flex-col">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รีเซต</label>
+                    <button id="reset-ot" class="bg-black text-white py-2.5 px-4 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold">โอที</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ตารางแสดงข้อมูล -->
+        <div class="bg-white rounded-lg shadow-md overflow-hidden">
+            <table id="data-table" class="min-w-full text-sm">
+                <thead>
+                    <tr class="bg-gray-50 text-lg font-semibold text-gray-800">
+                        <th class="py-3 px-4 border-b border-gray-200 w-12 text-center">ID</th>
+                        <th class="py-3 px-4 text-left border-b border-gray-200">พนักงาน</th>
+                        <th class="py-3 px-4 text-left border-b border-gray-200 w-32">แผนก</th>
+                        <th class="py-3 px-4 text-center border-b border-gray-200 w-48">คำสั่ง</th>
+                    </tr>
+                </thead>
+                <tbody class="text-base text-gray-700">
+                    <!-- ข้อมูลจะถูกเพิ่มโดย JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- ส่วน Pagination -->
+        <div id="pagination" class="mt-6 flex justify-center space-x-2"></div>
+    </div>
+
+    <!-- โมดอลสำหรับแก้ไขข้อมูล -->
+    <div id="edit-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50 p-4">
+        <div class="bg-white p-8 rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl">
+            <h2 class="text-2xl font-bold text-gray-800 mb-6">แก้ไขข้อมูลพนักงาน</h2>
+            <form id="edit-form">
+                <input type="hidden" id="edit-id">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <div>
+                        <label for="edit-userID" class="block text-sm font-medium text-gray-700 mb-1">UserID Line</label>
+                        <input type="text" id="edit-userID" class="w-full rounded-md border-gray-300 p-2 bg-gray-100 cursor-not-allowed" disabled>
+                    </div>
+                    <div>
+                        <label for="edit-name" class="block text-sm font-medium text-gray-700 mb-1">ชื่อนักศึกษา</label>
+                        <input type="text" id="edit-name" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                    </div>
+                    <div>
+                        <label for="edit-employeeID" class="block text-sm font-medium text-gray-700 mb-1">รหัสนักศึกษา</label>
+                        <input type="text" id="edit-employeeID" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                    </div>
+                    <div>
+                        <label for="edit-department" class="block text-sm font-medium text-gray-700 mb-1">ชั้นปี</label>
+                        <input type="text" id="edit-department" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                    </div>
+                    <div>
+                        <label for="edit-vacationLeave" class="block text-sm font-medium text-gray-700 mb-1">ลาพักร้อน (วัน)</label>
+                        <input type="number" id="edit-vacationLeave" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" min="0">
+                    </div>
+                    <div>
+                        <label for="edit-personalLeave" class="block text-sm font-medium text-gray-700 mb-1">ลากิจ (วัน)</label>
+                        <input type="number" id="edit-personalLeave" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" min="0">
+                    </div>
+                    <div>
+                        <label for="edit-sickLeave" class="block text-sm font-medium text-gray-700 mb-1">ลาป่วย (วัน)</label>
+                        <input type="number" id="edit-sickLeave" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" min="0">
+                    </div>
+                    <div>
+                        <label for="edit-ot" class="block text-sm font-medium text-gray-700 mb-1">โอที (ชั่วโมง)</label>
+                        <input type="number" id="edit-ot" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" min="0" step="0.5">
+                    </div>
+                    <div>
+                        <label for="edit-workStart" class="block text-sm font-medium text-gray-700 mb-1">กำหนดเข้างาน</label>
+                        <input type="time" id="edit-workStart" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                    </div>
+                    <div>
+                        <label for="edit-workEnd" class="block text-sm font-medium text-gray-700 mb-1">กำหนดออกงาน</label>
+                        <input type="time" id="edit-workEnd" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                    </div>
+                    <div class="md:col-span-2 lg:col-span-3">
+                        <label for="edit-imageUrl" class="block text-sm font-medium text-gray-700 mb-1">URL รูปภาพ (ถ้ามี)</label>
+                        <input type="text" id="edit-imageUrl" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" placeholder="URL รูปภาพที่มีอยู่ หรือเว้นว่างถ้าอัปโหลดใหม่">
+                    </div>
+                    <div class="md:col-span-2 lg:col-span-3">
+                        <label for="edit-image" class="block text-sm font-medium text-gray-700 mb-1">อัปโหลดรูปภาพใหม่ (ถ้าต้องการเปลี่ยน)</label>
+                        <input type="file" id="edit-image" accept="image/png, image/jpeg, image/gif" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black">
+                        <img id="preview-image" src="#" alt="Preview" class="mt-3 h-28 w-28 object-cover rounded-md border border-gray-200 hidden" />
+                    </div>
+                </div>
+                <div class="flex justify-end mt-8 space-x-3">
+                    <button type="button" class="bg-gray-200 text-gray-800 py-3 px-6 rounded-lg hover:bg-gray-300 transition duration-200 ease-in-out font-semibold" onclick="closeEditModal()">ยกเลิก</button>
+                    <button type="submit" id="save-button" class="bg-black text-white py-3 px-6 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold">บันทึก</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <script src="Config.js"></script>
+    <script>
+        // Ensure WEB_APP_MEMBER_URL is defined in config.js
+        // For testing purposes if config.js is not available:
+        // const WEB_APP_MEMBER_URL = "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL"; 
+
+        const rowsPerPage = 10;
+        let currentPage = 1;
+        let tableData = [];
+        let filteredData = [];
+        const departmentColors = {};
+        const badgeColors = [
+            "bg-red-100 text-red-800", "bg-green-100 text-green-800", "bg-blue-100 text-blue-800",
+            "bg-yellow-100 text-yellow-800", "bg-purple-100 text-purple-800", "bg-pink-100 text-pink-800",
+            "bg-indigo-100 text-indigo-800", "bg-teal-100 text-teal-800",
+        ];
+
+        function getRandomColorClass() {
+            return badgeColors[Math.floor(Math.random() * badgeColors.length)];
+        }
+
+        /**
+         * Helper function to manage button loading state.
+         * @param {HTMLElement} buttonElement The button to update.
+         * @param {boolean} isLoading True to show loading, false to revert.
+         * @param {string} originalText The original text of the button.
+         * @param {string} loadingText The text to show when loading.
+         */
+        function setButtonState(buttonElement, isLoading, originalText, loadingText) {
+            if (!buttonElement) return;
+
+            if (isLoading) {
+                buttonElement.dataset.originalText = originalText; // Store original text
+                buttonElement.textContent = loadingText;
+                buttonElement.disabled = true;
+                buttonElement.classList.add('opacity-75', 'cursor-not-allowed');
+            } else {
+                buttonElement.textContent = buttonElement.dataset.originalText || originalText; // Retrieve original
+                buttonElement.disabled = false;
+                buttonElement.classList.remove('opacity-75', 'cursor-not-allowed');
+            }
+        }
+
+        async function fetchData() {
+            const tableBody = document.querySelector("#data-table tbody");
+            // Display loading message in the table
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="4" class="text-center py-8 text-gray-500">
+                        กำลังโหลดข้อมูล...
+                    </td>
+                </tr>
+            `;
+
+            try {
+                const response = await fetch(WEB_APP_MEMBER_URL);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                const data = await response.json();
+                tableData = data.slice(1); // Assuming first row is header
+                applyFilters(); // Re-apply filters to update filteredData and display
+            } catch (error) {
+                console.error("Error fetching data:", error);
+                Swal.fire("Error", "ไม่สามารถดึงข้อมูลได้: " + error.message, "error");
+                // If error, display error message instead of loading
+                tableBody.innerHTML = `
+                    <tr>
+                        <td colspan="4" class="text-center py-8 text-red-500">
+                            ไม่สามารถโหลดข้อมูลได้: ${error.message}
+                        </td>
+                    </tr>
+                `;
+            } finally {
+                // The displayPage() or error handling will replace this message, so no explicit hide needed here.
+            }
+        }
+
+        function displayPage(page) {
+            const startIndex = (page - 1) * rowsPerPage;
+            const endIndex = startIndex + rowsPerPage;
+            const paginatedData = filteredData.slice(startIndex, endIndex);
+            const tableBody = document.querySelector("#data-table tbody");
+            tableBody.innerHTML = ""; // Clear existing content (including loading message)
+
+            if (paginatedData.length === 0 && filteredData.length > 0 && currentPage > 1) {
+                // If current page is empty but there's overall filtered data, go to page 1
+                currentPage = 1;
+                displayPage(currentPage); // Re-render from page 1
+                return;
+            }
+            if (paginatedData.length === 0) { // No results at all or no results on page 1 after filter
+                tableBody.innerHTML = `<tr><td colspan="4" class="text-center py-8 text-gray-500">ไม่พบข้อมูลพนักงาน</td></tr>`;
+                return;
+            }
+
+
+            paginatedData.forEach((row) => {
+                // Ensure row is not entirely empty, which can happen if sheet has empty rows
+                if (row.every(cell => cell === null || cell === undefined || cell === "")) return;
+
+                const tr = document.createElement("tr");
+                tr.className = "hover:bg-gray-50 transition duration-150 ease-in-out"; // Added hover effect
+                // Columns: 0:ID, 1:userIDline, 2:ชื่อ, 3:รหัสนักศึกษา, 4:ชั้นปี, 5:รูป, 6:บันทึกเวลาล่าสุด,
+                // 7:ลาพักร้อน, 8:ลากิจ, 9:ลาป่วย, 10:OT, 11:กำหนดเข้างาน, 12:กำหนดออกงาน
+                const id = row[0] || "-";
+                const name = row[2] || "ไม่ระบุชื่อ";
+                const employeeCode = row[3] || "-";
+                const department = row[4] || "ไม่ระบุ";
+                const imageUrl = row[5];
+                const vacation = row[7] || 0;
+                const personal = row[8] || 0;
+                const sick = row[9] || 0;
+                const ot = row[10] || 0;
+
+                tr.innerHTML = `
+                    <td class="py-3 px-4 border-b border-gray-100 text-center">${id}</td>
+                    <td class="py-3 px-4 border-b border-gray-100">
+                        <div class="flex items-start space-x-4">
+                            <div>
+                                ${imageUrl ? `<img src="${imageUrl}" alt="Profile" class="h-16 w-16 object-cover rounded-md border border-gray-200">` : `<div class="h-16 w-16 bg-gray-200 rounded-md flex items-center justify-center text-gray-400 text-xs">No Img</div>`}
+                            </div>
+                            <div>
+                                <div class="font-semibold text-gray-800">${name}</div>
+                                <div class="text-sm text-gray-600">รหัส: ${employeeCode}</div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    พักร้อน: ${vacation} | ลากิจ: ${personal} | ลาป่วย: ${sick} | OT: ${ot} ชม.
+                                </div>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="py-3 px-4 border-b border-gray-100">
+                        <span class="inline-block px-2 py-0.5 text-xs rounded-md font-semibold ${getDepartmentColor(department)}">${department}</span>
+                    </td>
+                    <td class="py-3 px-4 border-b border-gray-100 text-center">
+                        <button class="bg-yellow-500 text-white py-2 px-4 rounded-lg hover:bg-yellow-600 transition duration-200 ease-in-out text-sm font-semibold mr-2 edit-btn">แก้ไข</button>
+                        <button class="bg-red-500 text-white py-2 px-4 rounded-lg hover:bg-red-600 transition duration-200 ease-in-out text-sm font-semibold delete-btn">ลบ</button>
+                    </td>
+                `;
+                tr.querySelector('.edit-btn').onclick = () => openEditModal(row);
+                // Pass the button element to confirmDelete
+                tr.querySelector('.delete-btn').onclick = (event) => confirmDelete(id, event.target);
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function getDepartmentColor(dept) {
+            if (!departmentColors[dept]) {
+                departmentColors[dept] = getRandomColorClass();
+            }
+            return departmentColors[dept];
+        }
+
+        function setupPagination() {
+            const pageCount = Math.ceil(filteredData.length / rowsPerPage);
+            const pagination = document.getElementById("pagination");
+            pagination.innerHTML = "";
+            if (pageCount <= 1) return;
+
+            // Previous button
+            const prevButton = document.createElement("button");
+            prevButton.textContent = "ก่อนหน้า";
+            prevButton.className = `py-2 px-4 rounded-lg bg-black text-white hover:bg-gray-800 transition duration-200 ease-in-out font-semibold disabled:opacity-50 disabled:cursor-not-allowed mr-2`;
+            prevButton.disabled = currentPage === 1;
+            prevButton.onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    displayPage(currentPage);
+                    updatePaginationButtons();
+                }
+            };
+            pagination.appendChild(prevButton);
+
+            for (let i = 1; i <= pageCount; i++) {
+                const pageButton = document.createElement("button");
+                pageButton.textContent = i;
+                pageButton.className = `py-2 px-4 rounded-lg ${i === currentPage ? "bg-black text-white" : "bg-gray-200 text-gray-800 hover:bg-gray-300"} transition duration-200 ease-in-out font-semibold mx-1`;
+                pageButton.onclick = () => {
+                    currentPage = i;
+                    displayPage(currentPage);
+                    updatePaginationButtons();
+                };
+                pagination.appendChild(pageButton);
+            }
+
+            // Next button
+            const nextButton = document.createElement("button");
+            nextButton.textContent = "ถัดไป";
+            nextButton.className = `py-2 px-4 rounded-lg bg-black text-white hover:bg-gray-800 transition duration-200 ease-in-out font-semibold disabled:opacity-50 disabled:cursor-not-allowed ml-2`;
+            nextButton.disabled = currentPage === pageCount;
+            nextButton.onclick = () => {
+                if (currentPage < pageCount) {
+                    currentPage++;
+                    displayPage(currentPage);
+                    updatePaginationButtons();
+                }
+            };
+            pagination.appendChild(nextButton);
+
+            updatePaginationButtons(); // Initial update for correct button states
+        }
+
+        function updatePaginationButtons() {
+            const pageCount = Math.ceil(filteredData.length / rowsPerPage);
+            const paginationButtons = document.getElementById("pagination").querySelectorAll("button");
+
+            // Update page number buttons
+            paginationButtons.forEach((button, index) => {
+                if (!isNaN(parseInt(button.textContent))) { // Check if it's a number button
+                    if (parseInt(button.textContent) === currentPage) {
+                        button.className = "py-2 px-4 rounded-lg bg-black text-white transition duration-200 ease-in-out font-semibold mx-1";
+                    } else {
+                        button.className = "py-2 px-4 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition duration-200 ease-in-out font-semibold mx-1";
+                    }
+                }
+            });
+
+            // Update Prev/Next buttons
+            const prevButton = paginationButtons[0];
+            const nextButton = paginationButtons[paginationButtons.length - 1];
+            if (prevButton && nextButton) {
+                prevButton.disabled = currentPage === 1;
+                nextButton.disabled = currentPage === pageCount;
+            }
+        }
+
+
+        function openEditModal(row) {
+            // Columns: 0:ID, 1:userIDline, 2:ชื่อ, 3:รหัสพนักงาน, 4:แผนก, 5:รูป, 6:บันทึกเวลาล่าสุด (not used in form)
+            // 7:ลาพักร้อน, 8:ลากิจ, 9:ลาป่วย, 10:OT, 11:กำหนดเข้างาน, 12:กำหนดออกงาน
+            document.getElementById("edit-id").value = row[0] || "";
+            document.getElementById("edit-userID").value = row[1] || "";
+            document.getElementById("edit-name").value = row[2] || "";
+            document.getElementById("edit-employeeID").value = row[3] || "";
+            document.getElementById("edit-department").value = row[4] || "";
+            document.getElementById("edit-imageUrl").value = row[5] || ""; // Existing image URL
+            document.getElementById("edit-vacationLeave").value = row[7] || "0";
+            document.getElementById("edit-personalLeave").value = row[8] || "0";
+            document.getElementById("edit-sickLeave").value = row[9] || "0";
+            document.getElementById("edit-ot").value = row[10] || "0";
+            document.getElementById("edit-workStart").value = row[11] || "";
+            document.getElementById("edit-workEnd").value = row[12] || "";
+
+            document.getElementById("edit-image").value = ""; // Clear file input
+            const previewImage = document.getElementById("preview-image");
+            if (row[5]) { // If there's an existing image URL
+                previewImage.src = row[5];
+                previewImage.classList.remove("hidden");
+            } else {
+                previewImage.src = "#";
+                previewImage.classList.add("hidden");
+            }
+
+            // Ensure the save button is in its default state when modal opens
+            setButtonState(document.getElementById("save-button"), false, "บันทึก", "กำลังบันทึก...");
+
+            document.getElementById("edit-modal").classList.remove("hidden");
+        }
+
+        document.getElementById("edit-image").addEventListener('change', function(event) {
+            const preview = document.getElementById('preview-image');
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    preview.src = e.target.result;
+                    preview.classList.remove('hidden');
+                }
+                reader.readAsDataURL(file);
+            } else {
+                // If no file is selected (e.g., user cancels), show original image if available
+                const originalImageUrl = document.getElementById("edit-imageUrl").value;
+                if (originalImageUrl) {
+                    preview.src = originalImageUrl;
+                    preview.classList.remove('hidden');
+                } else {
+                    preview.src = '#';
+                    preview.classList.add('hidden');
+                }
+            }
+        });
+
+
+        function closeEditModal() {
+            document.getElementById("edit-modal").classList.add("hidden");
+            document.getElementById("edit-form").reset(); // Reset form fields
+            document.getElementById("preview-image").src = "#";
+            document.getElementById("preview-image").classList.add("hidden");
+
+        }
+
+        async function updateData(id, userID, name, employeeID, department, imageData, isNewImage, vacationLeave, personalLeave, sickLeave, ot, workStart, workEnd) {
+            const saveButton = document.getElementById("save-button");
+            setButtonState(saveButton, true, "บันทึก", "กำลังบันทึก..."); // Show loading state
+
+            const formData = new URLSearchParams();
+            formData.append('method', 'updateData');
+            formData.append('id', id);
+            formData.append('userID', userID);
+            formData.append('name', name);
+            formData.append('employeeID', employeeID);
+            formData.append('department', department);
+            formData.append('imageUrl', imageData); // This will be base64 or an existing URL
+            formData.append('isNewImage', isNewImage.toString()); // Send boolean as 'true' or 'false' string
+            formData.append('vacationLeave', vacationLeave);
+            formData.append('personalLeave', personalLeave);
+            formData.append('sickLeave', sickLeave);
+            formData.append('ot', ot);
+            formData.append('workStart', workStart);
+            formData.append('workEnd', workEnd);
+
+            try {
+                const response = await fetch(WEB_APP_MEMBER_URL, {
+                    method: "POST",
+                    body: formData // fetch handles Content-Type for URLSearchParams
+                });
+                if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+                const result = await response.text();
+                Swal.fire({
+                    title: "สำเร็จ!",
+                    text: result,
+                    icon: "success",
+                    confirmButtonText: "ตกลง"
+                });
+                await fetchData(); // Refresh data
+            } catch (error) {
+                console.error("Error updating data:", error);
+                Swal.fire("เกิดข้อผิดพลาด!", `การอัปเดตข้อมูลล้มเหลว: ${error.message}`, "error");
+            } finally {
+                setButtonState(saveButton, false, "บันทึก", "กำลังบันทึก..."); // Revert button state
+            }
+        }
+
+        document.getElementById("edit-form").addEventListener("submit", async function(e) {
+            e.preventDefault();
+            const id = document.getElementById("edit-id").value;
+            const userID = document.getElementById("edit-userID").value;
+            const name = document.getElementById("edit-name").value;
+            const employeeID = document.getElementById("edit-employeeID").value;
+            const department = document.getElementById("edit-department").value;
+            const vacationLeave = document.getElementById("edit-vacationLeave").value;
+            const personalLeave = document.getElementById("edit-personalLeave").value;
+            const sickLeave = document.getElementById("edit-sickLeave").value;
+            const ot = document.getElementById("edit-ot").value;
+            const workStart = document.getElementById("edit-workStart").value;
+            const workEnd = document.getElementById("edit-workEnd").value;
+
+            const imageFile = document.getElementById("edit-image").files[0];
+            let imageData = document.getElementById("edit-imageUrl").value; // Default to existing URL
+            let isNewImage = false;
+
+            if (imageFile) {
+                try {
+                    imageData = await getBase64(imageFile); // This will be only the base64 part
+                    isNewImage = true;
+                } catch (error) {
+                    console.error("Error converting image to Base64:", error);
+                    Swal.fire("เกิดข้อผิดพลาด", "การแปลงรูปภาพล้มเหลว กรุณาลองใหม่อีกครั้ง", "error");
+                    return; // Stop submission if image conversion fails
+                }
+            }
+            // If no new imageFile, imageData remains the original URL and isNewImage remains false.
+
+            await updateData(id, userID, name, employeeID, department, imageData, isNewImage, vacationLeave, personalLeave, sickLeave, ot, workStart, workEnd);
+            closeEditModal();
+        });
+
+        async function deleteData(id, buttonElement) {
+            setButtonState(buttonElement, true, "ลบ", "กำลังลบ..."); // Show loading state on specific button
+
+            const formData = new URLSearchParams();
+            formData.append('method', 'deleteData');
+            formData.append('id', id);
+            try {
+                const response = await fetch(WEB_APP_MEMBER_URL, {
+                    method: "POST",
+                    body: formData,
+                });
+                if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+                const result = await response.text();
+                Swal.fire("ลบเรียบร้อย", result, "success");
+                await fetchData(); // Re-fetch data will redraw the table and effectively "reset" all buttons
+            } catch (error) {
+                console.error("Error deleting data:", error);
+                Swal.fire("เกิดข้อผิดพลาด!", `การลบข้อมูลล้มเหลว: ${error.message}`, "error");
+            } finally {
+                // If fetchData fails, this ensures the button is re-enabled. If successful, new buttons are drawn.
+                setButtonState(buttonElement, false, "ลบ", "ลบ"); 
+            }
+        }
+
+        function confirmDelete(id, buttonElement) {
+            Swal.fire({
+                title: "คุณแน่ใจหรือไม่?",
+                text: `คุณต้องการลบข้อมูลพนักงาน ID: ${id} หรือไม่? การกระทำนี้ไม่สามารถย้อนกลับได้!`,
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#d33", // Red
+                cancelButtonColor: "#6B7280", // Gray for cancel
+                confirmButtonText: "ใช่, ลบเลย!",
+                cancelButtonText: "ยกเลิก"
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    deleteData(id, buttonElement);
+                }
+            });
+        }
+
+        function getBase64(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    // result includes "data:image/png;base64," prefix, we need to strip it for generateFileUrl
+                    const base64String = reader.result.split(",")[1];
+                    resolve(base64String);
+                };
+                reader.onerror = (error) => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function resetLeaves() {
+            const resetButton = document.getElementById("reset-leaves");
+            setButtonState(resetButton, true, "วันลา", "กำลังรีเซต...");
+
+            Swal.fire({
+                title: "คุณแน่ใจหรือไม่?",
+                text: "คุณต้องการรีเซตวันลา (ลาพักร้อน, ลากิจ, ลาป่วย) ทั้งหมดเป็น 0 หรือไม่?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#10B981", // Green for confirm
+                cancelButtonColor: "#6B7280", // Gray for cancel
+                confirmButtonText: "ใช่, รีเซตเลย!",
+                cancelButtonText: "ยกเลิก"
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const formData = new URLSearchParams();
+                        formData.append('method', 'resetLeaves');
+                        const response = await fetch(WEB_APP_MEMBER_URL, {
+                            method: "POST",
+                            body: formData
+                        });
+                        if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+                        const resultText = await response.text();
+                        Swal.fire("สำเร็จ!", resultText, "success");
+                        fetchData();
+                    } catch (error) {
+                        console.error("Error resetting leaves:", error);
+                        Swal.fire("เกิดข้อผิดพลาด", `ไม่สามารถรีเซตวันลาได้: ${error.message}`, "error");
+                    } finally {
+                        setButtonState(resetButton, false, "วันลา", "กำลังรีเซต..."); // Revert button state
+                    }
+                } else {
+                    setButtonState(resetButton, false, "วันลา", "กำลังรีเซต..."); // Revert if user cancels
+                }
+            });
+        }
+
+        async function resetOT() {
+            const resetButton = document.getElementById("reset-ot");
+            setButtonState(resetButton, true, "โอที", "กำลังรีเซต...");
+
+            Swal.fire({
+                title: "คุณแน่ใจหรือไม่?",
+                text: "คุณต้องการรีเซต OT ทั้งหมดเป็น 0 หรือไม่?",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonColor: "#10B981", // Green for confirm
+                cancelButtonColor: "#6B7280", // Gray for cancel
+                confirmButtonText: "ใช่, รีเซตเลย!",
+                cancelButtonText: "ยกเลิก"
+            }).then(async (result) => {
+                if (result.isConfirmed) {
+                    try {
+                        const formData = new URLSearchParams();
+                        formData.append('method', 'resetOT');
+                        const response = await fetch(WEB_APP_MEMBER_URL, {
+                            method: "POST",
+                            body: formData
+                        });
+                        if (!response.ok) throw new Error(`Server error: ${response.statusText}`);
+                        const resultText = await response.text();
+                        Swal.fire("สำเร็จ!", resultText, "success");
+                        fetchData();
+                    } catch (error) {
+                        console.error("Error resetting OT:", error);
+                        Swal.fire("เกิดข้อผิดพลาด", `ไม่สามารถรีเซต OT ได้: ${error.message}`, "error");
+                    } finally {
+                        setButtonState(resetButton, false, "โอที", "กำลังรีเซต..."); // Revert button state
+                    }
+                } else {
+                    setButtonState(resetButton, false, "โอที", "กำลังรีเซต..."); // Revert if user cancels
+                }
+            });
+        }
+
+        document.getElementById("reset-leaves").addEventListener("click", resetLeaves);
+        document.getElementById("reset-ot").addEventListener("click", resetOT);
+
+        const filterNameInput = document.getElementById("filter-name");
+        const filterDeptInput = document.getElementById("filter-department");
+        const filterEmpIDInput = document.getElementById("filter-employeeID");
+
+        function applyFilters() {
+            const nameValue = filterNameInput.value.toLowerCase().trim();
+            const deptValue = filterDeptInput.value.toLowerCase().trim();
+            const empIdValue = filterEmpIDInput.value.toLowerCase().trim();
+
+            filteredData = tableData.filter((row) => {
+                if (row.every(cell => cell === null || cell === undefined || cell === "")) return false; // Skip empty rows
+                const empName = (row[2] || "").toLowerCase();
+                const department = (row[4] || "").toLowerCase();
+                const employeeID = (row[3] || "").toLowerCase();
+                return (
+                    empName.includes(nameValue) &&
+                    department.includes(deptValue) &&
+                    employeeID.includes(empIdValue)
+                );
+            });
+            currentPage = 1; // Reset to first page on filter change
+            displayPage(currentPage);
+            setupPagination();
+        }
+        filterNameInput.addEventListener("input", applyFilters);
+        filterDeptInput.addEventListener("input", applyFilters);
+        filterEmpIDInput.addEventListener("input", applyFilters);
+
+        window.onload = fetchData;
+    </script>
+</body>
+
+</html>

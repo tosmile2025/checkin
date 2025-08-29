@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>ประวัติการบันทึก</title>
+  <!-- นำเข้า Tailwind CSS สำหรับการออกแบบ UI -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- นำเข้า SweetAlert2 สำหรับแสดงกล่องข้อความแจ้งเตือน -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <!-- นำเข้า LIFF SDK ของ LINE -->
+  <script src="https://static.line-scdn.net/liff/edge/2.1/sdk.js"></script>
+  <!-- นำเข้า Heroicons สำหรับไอคอน -->
+  <script src="https://unpkg.com/heroicons@2.0.13/dist/heroicons.min.js"></script>
+  <style>
+    /* CSS สำหรับแสดงสถานะการโหลด */
+    #loading {
+      display: none;
+      text-align: center;
+    }
+  </style>
+</head>
+
+<body class="bg-white max-w-md mx-auto h-screen">
+  <div class="container p-4">
+    <div class="p-2">
+      <input type="hidden" id="userId" name="userId">
+      <input type="hidden" id="displayName" name="displayName">
+
+      <!-- แสดงข้อมูลหลัก -->
+      <div id="main-info" class="bg-slate-100 rounded shadow-sm p-6 mb-6 text-sm flex flex-col space-y-2">
+        <div class="flex items-center">
+          <strong>ชื่อ-นามสกุล:</strong>
+          <span id="name-info" class="font-medium ml-1"></span>
+        </div>
+        <div class="flex items-center">
+          <strong>รหัสประจำตัว นสพ.:</strong>
+          <span id="employee-id-info" class="font-medium ml-1"></span>
+        </div>
+      </div>
+
+      <!-- ตารางแสดงข้อมูล -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-slate-200 rounded shadow-sm">
+          <!-- เพิ่ม rounded-t-lg ให้กับ thead -->
+          <thead class="rounded-t-lg">
+            <tr class="text-slate-100 text-center text-xs">
+              <th class="py-2 px-4 bg-slate-800 rounded-tl-lg">สถานะ</th>
+              <th class="py-2 px-4 bg-slate-800 ">หมายเหตุ</th>
+              <th class="py-2 px-4 bg-slate-800 rounded-tr-lg">วันที่เวลา</th>
+            </tr>
+          </thead>
+          <tbody id="data-table" class="text-slate-600 text-xs">
+            <!-- ข้อมูลการบันทึกจะแสดงที่นี่ -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- ตัวควบคุมการแบ่งหน้า -->
+      <div id="pagination-controls" class="mt-4 text-sm flex flex-wrap justify-center"></div>
+      <!-- แสดงสถานะการโหลด -->
+      <div id="loading" class="text-center text-slate-800 mt-4 text-sm">กำลังโหลด...</div>
+    </div>
+  </div>
+
+  <script src="Config.js"></script>
+  <script>
+    // จำนวนรายการที่จะแสดงต่อหน้า
+    const itemsPerPage = 10;
+    let currentPage = 1;
+
+    // เริ่มต้นเมื่อโหลดหน้าเสร็จ
+    window.onload = function () {
+      initializeLiff();
+    };
+
+    // ฟังก์ชันเริ่มต้น LIFF
+    async function initializeLiff() {
+      await liff.init({ liffId: `${LIFF_HISTORY}` });
+      if (liff.isLoggedIn()) {
+        getUserProfile();
+      } else {
+        liff.login();
+      }
+    }
+
+    // ฟังก์ชันดึงข้อมูลโปรไฟล์ผู้ใช้
+    async function getUserProfile() {
+      try {
+        const profile = await liff.getProfile();
+        document.getElementById('userId').value = profile.userId;
+        document.getElementById('displayName').value = profile.displayName;
+        fetchData(profile.userId);
+      } catch (error) {
+        console.error('Error getting profile data:', error);
+      }
+    }
+
+    // ฟังก์ชันดึงข้อมูลจาก Web App
+    async function fetchData(userId) {
+      document.getElementById('loading').style.display = 'block';
+      try {
+        const response = await fetch(`${WEB_APP_URL}`);
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        console.log('Fetched data:', data);
+        const filteredData = data.filter(row => row[11] === userId); // กรองข้อมูลตาม userId (คอลัมน์ที่ 11)
+
+        // แสดงชื่อและรหัสพนักงานจากแถวสุดท้าย
+        if (filteredData.length > 0) {
+          const lastRow = filteredData[filteredData.length - 1];
+          document.getElementById('name-info').textContent = lastRow[2];
+          document.getElementById('employee-id-info').textContent = lastRow[3];
+        }
+
+        buildTable('data-table', filteredData);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        document.getElementById('data-table').innerHTML = '<tr><td colspan="3" class="text-center">เกิดข้อผิดพลาดในการดึงข้อมูล กรุณาตรวจสอบคอนโซลสำหรับรายละเอียดเพิ่มเติม</td></tr>';
+      } finally {
+        document.getElementById('loading').style.display = 'none';
+      }
+    }
+
+    // ฟังก์ชันจัดรูปแบบวันที่
+    function formatDate(dateString) {
+      const date = new Date(dateString);
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      return `${day}/${month}/${year}`;
+    }
+
+    // ฟังก์ชันจัดรูปแบบเวลา
+    function formatTime(timeString) {
+      const date = new Date(timeString);
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    }
+
+    // ฟังก์ชันสร้างตารางแสดงข้อมูล
+    function buildTable(tableId, values) {
+      const table = document.getElementById(tableId);
+      table.innerHTML = '';
+
+      const startIndex = (currentPage - 1) * itemsPerPage;
+      const endIndex = startIndex + itemsPerPage;
+      const reversedValues = values.slice().reverse(); // แสดงข้อมูลล่าสุดก่อน
+
+      reversedValues.slice(startIndex, endIndex).forEach(row => {
+        const tr = document.createElement('tr');
+        tr.classList.add('border-b', 'hover:bg-slate-100');
+
+        // ดึงค่าจากคอลัมน์ 4, 12 และ 13
+        const col4 = row[4];
+        const col12 = row[12];
+        const col13 = row[13];
+
+        // รวมข้อความในรูปแบบ "row4(row12 row13 น.)" หากมีข้อมูลในคอลัมน์ 12 และ 13
+        let statusText = col4;
+        if (col12 && col12.trim() !== "" && col13 && col13.toString().trim() !== "") {
+          statusText = `${col4}(${col12} ${col13} น.)`;
+        } else if (col12 && col12.trim() !== "") {
+          statusText = `${col4}(${col12})`;
+        } else if (col13 && col13.toString().trim() !== "") {
+          statusText = `${col4}(${col13} น.)`;
+        }
+
+        // กำหนดสีสำหรับสถานะ "เข้างาน" (สีเขียว) และ "ออกงาน" (สีแดง)
+        let statusColor = 'gray';
+        let dotColor = 'gray';
+        if (col4 === 'เข้างาน') {
+          statusColor = 'green';
+          dotColor = 'green';
+        } else if (col4 === 'ออกงาน') {
+          statusColor = 'red';
+          dotColor = 'red';
+        }
+
+        // สร้างเซลล์สำหรับสถานะ โดยจัดข้อความให้อยู่กลาง
+        let td = document.createElement('td');
+        td.classList.add('py-2', 'px-4', 'whitespace-nowrap');
+        td.innerHTML = `
+          <span class="flex items-center justify-center border border-${statusColor}-500 rounded-full px-2 py-1 text-${statusColor}-500">
+            <span class="h-2 w-2 bg-${dotColor}-500 rounded-lg mr-2"></span>
+            ${statusText}
+          </span>
+        `;
+        tr.appendChild(td);
+
+        // เซลล์สำหรับหมายเหตุ (จัดข้อความให้อยู่กลาง)
+        td = document.createElement('td');
+        td.classList.add('py-2', 'px-4', 'whitespace-nowrap', 'text-center');
+        td.textContent = row[5];
+        tr.appendChild(td);
+
+        // เซลล์สำหรับวันที่และเวลา (จัดข้อความให้อยู่กลาง)
+        td = document.createElement('td');
+        td.classList.add('py-2', 'px-4', 'whitespace-nowrap', 'text-center');
+        td.innerHTML = `
+          <div>${formatDate(row[6])}</div>
+          <div class="text-gray-500 text-sm">${formatTime(row[7])}</div>
+        `;
+        tr.appendChild(td);
+
+        table.appendChild(tr);
+      });
+
+      updatePaginationControls(values.length);
+    }
+
+    // ฟังก์ชันอัปเดตตัวควบคุมการแบ่งหน้า
+    function updatePaginationControls(totalItems) {
+      const totalPages = Math.ceil(totalItems / itemsPerPage);
+      const paginationControls = document.getElementById('pagination-controls');
+      paginationControls.innerHTML = '';
+
+      if (totalPages <= 1) return;
+
+      for (let i = 1; i <= totalPages; i++) {
+        const pageButton = document.createElement('button');
+        pageButton.textContent = i;
+        pageButton.addEventListener('click', () => {
+          currentPage = i;
+          fetchData(document.getElementById('userId').value);
+        });
+        pageButton.classList.add(
+          'py-1',
+          'px-3',
+          'm-1',
+          'border',
+          'rounded',
+          'text-sm',
+          'focus:outline-none',
+          'focus:ring-2',
+          'focus:ring-blue-500'
+        );
+        if (i === currentPage) {
+          pageButton.classList.add('bg-black', 'text-white');
+        } else {
+          pageButton.classList.add('bg-white', 'text-black');
+        }
+        paginationControls.appendChild(pageButton);
+      }
+    }
+  </script>
+</body>
+
+</html>
