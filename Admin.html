@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard In-Out</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" integrity="sha512-Fo3W+8x8v5a4g61tTf6TjU5tKqWb4p3fLzP2mH5sT6h2+x0Q3r0oF9D/l6A+G7x4w==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <style>
+        /* Custom Colors for Status */
+        .text-green {
+            color: #28a745; /* Darker green for better contrast */
+            font-weight: 700; /* Bolder */
+        }
+        
+        .text-red {
+            color: #dc3545; /* Darker red for better contrast */
+            font-weight: 700;
+        }
+        
+        .text-yellow {
+            color: #ffc107; /* Standard yellow, but can be adjusted */
+            font-weight: 700;
+        }
+        /* General Body Font (Tailwind defaults to sans-serif, which is modern) */
+        body {
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+        }
+        /* overlay loading (keeping it for general purpose, though not used by fetchData anymore for table content) */
+        #loadingOverlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6); 
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1001;
+            color: white;
+            font-size: 1.5rem; 
+        }
+        
+        #loadingOverlay.active {
+            display: flex;
+        }
+        /* popup */
+        .popup-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8); 
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .popup-content {
+            position: relative;
+            background: white;
+            padding: 20px;
+            border-radius: 12px; 
+            max-width: 90%;
+            max-height: 90%;
+            text-align: center;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); 
+        }
+        
+        .popup-content img {
+            max-width: 100%;
+            max-height: calc(100vh - 100px);
+            object-fit: contain;
+        }
+        
+        #closePopup {
+            position: absolute;
+            top: 15px; 
+            right: 15px; 
+            background: rgba(0, 0, 0, 0.6); 
+            color: white;
+            padding: 8px 14px; 
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 24px; 
+            line-height: 1;
+            transition: background 0.2s ease; 
+        }
+        
+        #closePopup:hover {
+            background: rgba(0, 0, 0, 0.8);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-50 text-base p-6">
+    <!-- The global loading overlay (currently not used by fetchDataAndDisplay) -->
+    <!-- <div id="loadingOverlay">กำลังโหลดข้อมูล...</div> --> 
+
+    <div class="container mx-auto max-w-7xl">
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Sidebar -->
+            <div class="lg:w-1/4 bg-white p-6 rounded-lg shadow-md flex-shrink-0">
+                <!-- New: Manage Members Link -->
+                <a href="Member.html" class="block w-full text-center py-3 px-4 mb-6 rounded-lg bg-black text-white font-semibold hover:bg-gray-800 transition duration-200 ease-in-out">
+                    จัดการสมาชิก
+                </a>
+
+                <div class="mb-5">
+                    <label for="filterName" class="block text-sm font-medium text-gray-700 mb-1">ค้นหาชื่อ</label>
+                    <input id="filterName" type="text" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" placeholder="ชื่อนักศึกษา" />
+                </div>
+                <div class="mb-5">
+                    <label for="filterEmployeeId" class="block text-sm font-medium text-gray-700 mb-1">รหัสนักศึกษา</label>
+                    <input id="filterEmployeeId" type="text" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" placeholder="เช่น 12345" />
+                </div>
+                <fieldset class="mb-5 p-4 bg-gray-50 rounded-md border border-gray-200">
+                    <legend class="text-sm font-semibold text-gray-700 mb-2">บันทึกสถานะ</legend>
+                    <div class="flex flex-col space-y-2 text-sm">
+                        <label class="inline-flex items-center"><input id="filterIn" type="checkbox" value="เข้างาน" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">เข้างาน</span></label>
+                        <label class="inline-flex items-center"><input id="filterDuring" type="checkbox" value="ระหว่างวัน" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">ระหว่างวัน</span></label>
+                        <label class="inline-flex items-center"><input id="filterOut" type="checkbox" value="ออกงาน" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">ออกงาน</span></label>
+                    </div>
+                </fieldset>
+                <div class="bg-gray-50 p-4 rounded-md mb-5 border border-gray-200">
+                    <label class="block mb-2 text-sm font-medium text-gray-700">วันที่เริ่มต้น</label>
+                    <input id="startDate" type="date" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" />
+                    <label class="block mt-3 mb-2 text-sm font-medium text-gray-700">วันที่สิ้นสุด</label>
+                    <input id="endDate" type="date" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" />
+                    <label class="block mt-3 mb-2 text-sm font-medium text-gray-700">เวลาเริ่มต้น</label>
+                    <input id="startTime" type="time" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" />
+                    <label class="block mt-3 mb-2 text-sm font-medium text-gray-700">เวลาสิ้นสุด</label>
+                    <input id="endTime" type="time" class="w-full rounded-md border-gray-300 p-2 focus:border-black focus:ring-black" />
+                </div>
+                <fieldset class="border border-gray-200 p-4 mb-6 rounded-md bg-gray-50">
+                    <legend class="text-sm font-semibold text-gray-700 mb-3">เลือกคอลัมน์ส่งออก</legend>
+                    <div class="grid grid-cols-2 gap-y-2 gap-x-4 text-sm">
+                        <label class="inline-flex items-center"><input id="colImage" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">รูปภาพ</span></label>
+                        <label class="inline-flex items-center"><input id="colEmployeeId" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">รหัสพนักงาน</span></label>
+                        <label class="inline-flex items-center"><input id="colName" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">ชื่อ</span></label>
+                        <label class="inline-flex items-center"><input id="colStatus" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">บันทึก</span></label>
+                        <label class="inline-flex items-center"><input id="colNote" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">หมายเหตุ</span></label>
+                        <label class="inline-flex items-center"><input id="colDate" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">วันที่</span></label>
+                        <label class="inline-flex items-center"><input id="colTime" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">เวลา</span></label>
+                        <label class="inline-flex items-center"><input id="colLocation" type="checkbox" checked class="form-checkbox text-black rounded focus:ring-black" /> <span class="ml-2">สถานที่</span></label>
+                    </div>
+                </fieldset>
+                <div class="space-y-3">
+                    <!-- Export buttons with distinct colors and icons -->
+                    <button id="exportTxtBtn" class="bg-black text-white w-full py-3 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold flex items-center justify-center">
+                        <i class="fas fa-file-alt mr-2"></i> ส่งออก .txt
+                    </button>
+                    <button id="exportTxtCustomBtn" class="bg-zinc-800 text-white w-full py-3 rounded-lg hover:bg-zinc-700 transition duration-200 ease-in-out font-semibold flex items-center justify-center">
+                        <i class="fas fa-file-export mr-2"></i> ส่งออก .txt (รหัส-วัน/เวลา)
+                    </button>
+                    <button id="exportCsvBtn" class="bg-gray-700 text-white w-full py-3 rounded-lg hover:bg-gray-600 transition duration-200 ease-in-out font-semibold flex items-center justify-center">
+                        <i class="fas fa-file-csv mr-2"></i> ส่งออก .csv
+                    </button>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="flex-1 flex flex-col gap-6">
+                <div class="bg-white rounded-lg shadow-md p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between">
+                    <h1 class="text-2xl font-bold text-gray-800 mb-4 sm:mb-0">ระบบลงเวลา Round ward 🕖 </h1>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <div class="flex rounded-lg overflow-hidden shadow-sm">
+                            <button id="sortDescBtn" class="bg-black text-white py-2.5 px-5 rounded-l-lg hover:bg-gray-800 transition duration-200 ease-in-out text-sm font-semibold">ล่าสุด</button>
+                            <button id="sortAscBtn" class="bg-black text-white py-2.5 px-5 rounded-r-lg hover:bg-gray-800 transition duration-200 ease-in-out text-sm font-semibold">เก่าสุด</button>
+                        </div>
+                        <select id="rowsPerPage" class="rounded-lg border-gray-300 p-2.5 text-sm focus:border-black focus:ring-black">
+                            <option value="15">แสดง 15 แถว</option>
+                            <option value="50">แสดง 50 แถว</option>
+                            <option value="100">แสดง 100 แถว</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Table Container -->
+                <div class="bg-white rounded-lg shadow-md overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3 text-center text-sm font-semibold text-gray-800 uppercase tracking-wider w-20">รูปภาพ</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-800 uppercase tracking-wider w-64">พนักงาน / รหัส</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-800 uppercase tracking-wider w-28">สถานะ</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-800 uppercase tracking-wider w-36">วันที่ / เวลา</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-800 uppercase tracking-wider w-48">หมายเหตุ</th>
+                                <th class="px-4 py-3 text-left text-sm font-semibold text-gray-800 uppercase tracking-wider">สถานที่</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dataList" class="bg-white divide-y divide-gray-100">
+                            <!-- Data rows or loading message will be injected here -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bg-white rounded-lg shadow-md p-4 flex items-center justify-between mt-auto text-sm">
+                    <p id="rowsInfo" class="text-gray-700">กำลังโหลด...</p>
+                    <div class="flex gap-2">
+                        <button id="prevPageBtn" class="bg-black text-white py-2.5 px-5 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold disabled:opacity-50 disabled:cursor-not-allowed">ก่อนหน้า</button>
+                        <button id="nextPageBtn" class="bg-black text-white py-2.5 px-5 rounded-lg hover:bg-gray-800 transition duration-200 ease-in-out font-semibold disabled:opacity-50 disabled:cursor-not-allowed">ถัดไป</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Popup for Image View -->
+        <div id="popup" class="popup-overlay">
+            <div class="popup-content">
+                <span id="closePopup">×</span>
+                <img id="popupImage" src="" alt="Image" class="rounded-lg" />
+            </div>
+        </div>
+    </div>
+
+    <script src="Config.js"></script>
+    <script>
+        let currentPage = 1,
+            totalPages = 1,
+            fullData = []; // Store the full fetched data here
+
+        function formatDateTime(str) {
+            if (!str) return {
+                date: '',
+                time: ''
+            };
+            let d = new Date(str);
+            if (isNaN(d.getTime())) { // Check for invalid date more robustly
+                // Attempt to parse DD/MM/YYYY HH:MM format
+                const parts = str.match(/(\d{2})\/(\d{2})\/(\d{4})\s(\d{2}):(\d{2})/);
+                if (parts) {
+                    d = new Date(parts[3], parts[2] - 1, parts[1], parts[4], parts[5]);
+                } else {
+                    return { date: '', time: '' }; // Fallback for unparseable dates
+                }
+            }
+            const pad = n => ('0' + n).slice(-2);
+            return {
+                date: `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()}`,
+                time: `${pad(d.getHours())}:${pad(d.getMinutes())}`
+            };
+        }
+
+        function getStatusClass(s) {
+            return s === 'เข้างาน' ? 'text-green' :
+                s === 'ออกงาน' ? 'text-red' :
+                s === 'ระหว่างวัน' ? 'text-yellow' :
+                '';
+        }
+
+        /**
+         * Helper function to manage button loading state with icons.
+         * @param {HTMLElement} buttonElement The button to update.
+         * @param {boolean} isLoading True to show loading, false to revert.
+         * @param {string} loadingText The text to show when loading.
+         */
+        function setButtonStateWithIcon(buttonElement, isLoading, loadingText = '') {
+            if (!buttonElement) return;
+
+            if (isLoading) {
+                // Store original HTML content (including icon)
+                if (!buttonElement.dataset.originalHtml) {
+                    buttonElement.dataset.originalHtml = buttonElement.innerHTML;
+                }
+                buttonElement.innerHTML = `
+                    <svg class="animate-spin h-5 w-5 text-white mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    ${loadingText}
+                `;
+                buttonElement.disabled = true;
+                buttonElement.classList.add('opacity-75', 'cursor-not-allowed');
+            } else {
+                buttonElement.innerHTML = buttonElement.dataset.originalHtml; // Restore original HTML
+                buttonElement.disabled = false;
+                buttonElement.classList.remove('opacity-75', 'cursor-not-allowed');
+                delete buttonElement.dataset.originalHtml; // Clean up
+            }
+        }
+
+
+        async function fetchDataAndDisplay() {
+            const dataListBody = document.getElementById('dataList'); // This is the <tbody> element
+            const rowsInfo = document.getElementById('rowsInfo');
+
+            // Display loading message in the table body
+            dataListBody.innerHTML = `
+                <tr>
+                    <td colspan="6" class="text-center py-10 text-gray-500">
+                        <svg class="animate-spin h-8 w-8 text-gray-500 mx-auto mb-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        กำลังโหลดข้อมูล...
+                    </td>
+                </tr>
+            `;
+            rowsInfo.textContent = 'กำลังโหลดข้อมูล...';
+
+            try {
+                const res = await fetch(WEB_APP_URL);
+                if (!res.ok) throw new Error(res.statusText);
+                fullData = await res.json();
+                if (!Array.isArray(fullData) || fullData.length <= 1) { // Check for header row too
+                    dataListBody.innerHTML = '<tr><td colspan="6" class="text-gray-500 text-center py-10">ไม่พบข้อมูล</td></tr>';
+                    rowsInfo.textContent = 'ไม่พบข้อมูล';
+                    fullData = []; // Ensure fullData is empty if no actual data
+                    return;
+                }
+                updateTable(fullData, false); // Initial load, latest first
+            } catch (e) {
+                console.error("Error fetching data:", e);
+                dataListBody.innerHTML = `<tr><td colspan="6" class="text-red-500 text-center py-10">ไม่สามารถโหลดข้อมูลได้: ${e.message}</td></tr>`;
+                rowsInfo.textContent = 'เกิดข้อผิดพลาดในการโหลดข้อมูล';
+                fullData = []; // Clear data on error
+            }
+        }
+
+
+        function filterData(data) {
+            const nameF = document.getElementById('filterName').value.toLowerCase();
+            const idF = document.getElementById('filterEmployeeId').value;
+            const inF = document.getElementById('filterIn').checked;
+            const durF = document.getElementById('filterDuring').checked;
+            const outF = document.getElementById('filterOut').checked;
+            const sd = document.getElementById('startDate').value; // YYYY-MM-DD
+            const ed = document.getElementById('endDate').value; // YYYY-MM-DD
+            const st = document.getElementById('startTime').value; // HH:MM
+            const et = document.getElementById('endTime').value; // HH:MM
+
+            return data.filter(item => {
+                // Ensure item has enough data points before accessing
+                if (!item || item.length < 9) return false;
+
+                const f = formatDateTime(item[0]); // item[0] is original datetime string
+                
+                const nameMatch = item[2] && item[2].toLowerCase().includes(nameF);
+                const idMatch = item[3] && item[3].toString().includes(idF);
+                const status = item[4];
+                const statusMatch = (inF && status === 'เข้างาน') ||
+                    (durF && status === 'ระหว่างวัน') ||
+                    (outF && status === 'ออกงาน');
+
+                // Date filtering
+                let okDate = true;
+                if (sd) {
+                    const startDateObj = new Date(sd);
+                    const itemDateParts = f.date.split('-'); // DD-MM-YYYY
+                    const itemDateObj = new Date(itemDateParts[2], itemDateParts[1] - 1, itemDateParts[0]);
+                    okDate = itemDateObj >= startDateObj;
+                }
+                if (okDate && ed) {
+                    const endDateObj = new Date(ed);
+                    const itemDateParts = f.date.split('-');
+                    const itemDateObj = new Date(itemDateParts[2], itemDateParts[1] - 1, itemDateParts[0]);
+                    okDate = itemDateObj <= endDateObj;
+                }
+
+                // Time filtering
+                let okTime = true;
+                if (st && f.time) {
+                    okTime = f.time >= st;
+                }
+                if (okTime && et && f.time) {
+                    okTime = f.time <= et;
+                }
+
+                return nameMatch && idMatch && statusMatch && okDate && okTime;
+            });
+        }
+
+        function updateTable(data, asc = false) { // Default to latest (desc)
+            const tableBody = document.getElementById('dataList'); // This is the <tbody> element
+            tableBody.innerHTML = ''; // Clear previous content (including loading message if any)
+            const filtered = filterData(data.slice(1)); // Exclude header row
+            
+            const sorted = filtered.sort((a, b) => {
+                const da = new Date(a[0]),
+                    db = new Date(b[0]);
+                // Handle invalid dates by pushing them to the end
+                if (isNaN(da.getTime())) return 1;
+                if (isNaN(db.getTime())) return -1;
+                
+                return asc ? (da.getTime() - db.getTime()) : (db.getTime() - da.getTime());
+            });
+            
+            const perPage = parseInt(document.getElementById('rowsPerPage').value);
+            totalPages = Math.ceil(sorted.length / perPage) || 1;
+            if (currentPage > totalPages) currentPage = totalPages;
+            
+            const pageData = sorted.slice((currentPage - 1) * perPage, currentPage * perPage);
+
+            if (pageData.length === 0 && filtered.length === 0) {
+                // No data found after filtering
+                tableBody.innerHTML = '<tr><td colspan="6" class="text-gray-500 text-center py-10">ไม่พบข้อมูลที่ตรงกับตัวกรอง</td></tr>';
+            } else if (pageData.length === 0 && filtered.length > 0 && currentPage > 1) {
+                // Current page is empty, but there's data on other pages. Go to page 1.
+                currentPage = 1;
+                const newPageData = sorted.slice((currentPage - 1) * perPage, currentPage * perPage);
+                renderPage(newPageData);
+            } else {
+                 renderPage(pageData);
+            }
+            
+            function renderPage(dataToRender) {
+                dataToRender.forEach(item => {
+                    const f = formatDateTime(item[0]); // Full datetime string
+                    const statusClass = getStatusClass(item[4]);
+                    
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50 transition duration-150 ease-in-out'; 
+
+                    // Table cells (td)
+                    tr.innerHTML = `
+                        <td class="px-4 py-3">
+                            <div class="flex items-center justify-center">
+                                ${item[1] ? `<img src="${item[1]}" alt="ภาพ" class="h-10 w-10 rounded-full object-cover border border-gray-200 cursor-pointer">` : `<div class="h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-400 text-xs">No Img</div>`}
+                            </div>
+                        </td>
+                        <td class="px-4 py-3">
+                            <div class="flex flex-col">
+                                <div class="text-sm font-medium text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis">${item[2] || 'ไม่ระบุชื่อ'}</div>
+                                <div class="text-xs text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">${item[3] || 'ไม่ระบุรหัส'}</div>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass}">
+                                ${item[4] || 'ไม่ระบุ'}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                            <div class="text-gray-900">${f.date}</div>
+                            <div class="text-xs">${f.time}</div>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                            ${item[5] || '-'}
+                        </td>
+                        <td class="px-4 py-3 text-sm text-gray-500 whitespace-nowrap overflow-hidden text-ellipsis">
+                            ${item[8] || '-'}
+                        </td>
+                    `;
+                    
+                    // Add click handler to the image within the table cell for popup
+                    const imgElement = tr.querySelector('img');
+                    if (imgElement) {
+                        imgElement.onclick = () => {
+                            document.getElementById('popupImage').src = item[1];
+                            document.getElementById('popup').style.display = 'flex';
+                        };
+                    }
+
+                    tableBody.appendChild(tr);
+                });
+            }
+
+
+            document.getElementById('rowsInfo').textContent = `แสดง ${pageData.length} จาก ${filtered.length} รายการ (หน้า ${currentPage} จาก ${totalPages})`;
+            document.getElementById('prevPageBtn').disabled = currentPage === 1;
+            document.getElementById('nextPageBtn').disabled = currentPage === totalPages;
+        }
+
+        function getSelectedColumns() {
+            const sel = [];
+            if (document.getElementById('colImage').checked) sel.push({
+                index: 1,
+                label: 'รูปภาพ'
+            });
+            if (document.getElementById('colEmployeeId').checked) sel.push({
+                index: 3,
+                label: 'รหัสพนักงาน'
+            });
+            if (document.getElementById('colName').checked) sel.push({
+                index: 2,
+                label: 'ชื่อ'
+            });
+            if (document.getElementById('colStatus').checked) sel.push({
+                index: 4,
+                label: 'บันทึก'
+            });
+            if (document.getElementById('colNote').checked) sel.push({
+                index: 5,
+                label: 'หมายเหตุ'
+            });
+            // Date and Time need special handling as they come from the same index (item[0])
+            if (document.getElementById('colDate').checked) sel.push({
+                index: 0,
+                label: 'วันที่'
+            });
+            if (document.getElementById('colTime').checked) sel.push({
+                index: 0,
+                label: 'เวลา'
+            });
+            if (document.getElementById('colLocation').checked) sel.push({
+                index: 8,
+                label: 'สถานที่'
+            });
+            return sel;
+        }
+
+        async function exportToTxt(filteredData, selectedColumns, buttonElement) {
+            setButtonStateWithIcon(buttonElement, true, 'กำลังส่งออก...');
+            try {
+                const header = selectedColumns.map(c => c.label).join('\t');
+                const rows = filteredData.map(row => selectedColumns.map(c => {
+                    if (c.label === 'วันที่' || c.label === 'เวลา') {
+                        const f = formatDateTime(row[0]);
+                        return c.label === 'วันที่' ? f.date : f.time;
+                    }
+                    return row[c.index] || '';
+                }).join('\t'));
+                downloadFile([header, ...rows].join('\n'), 'data.txt', 'text/plain;charset=utf-8');
+            } catch (error) {
+                console.error('Export .txt failed:', error);
+                alert('เกิดข้อผิดพลาดในการส่งออกไฟล์ .txt');
+            } finally {
+                setButtonStateWithIcon(buttonElement, false);
+            }
+        }
+
+        async function exportToTxtWithCustomFormat(filteredData, buttonElement) {
+            setButtonStateWithIcon(buttonElement, true, 'กำลังส่งออก...');
+            try {
+                const header = 'รหัสที่เครื่อง\tวัน/เวลา';
+                const rows = filteredData.map(row => {
+                    const f = formatDateTime(row[0]);
+                    return `${row[3]||''}\t${f.date} ${f.time}`;
+                });
+                const fileName = `${document.getElementById('startDate').value||'start'}_to_${document.getElementById('endDate').value||'end'}.txt`;
+                downloadFile([header, ...rows].join('\n'), fileName, 'text/plain;charset=utf-8');
+            } catch (error) {
+                console.error('Export custom .txt failed:', error);
+                alert('เกิดข้อผิดพลาดในการส่งออกไฟล์ .txt (กำหนดเอง)');
+            } finally {
+                setButtonStateWithIcon(buttonElement, false);
+            }
+        }
+
+        async function exportToCsv(filteredData, selectedColumns, buttonElement) {
+            setButtonStateWithIcon(buttonElement, true, 'กำลังส่งออก...');
+            try {
+                const header = selectedColumns.map(c => c.label).join(',');
+                const rows = filteredData.map(row => selectedColumns.map(c => {
+                    let cell = '';
+                    if (c.label === 'วันที่' || c.label === 'เวลา') {
+                        const f = formatDateTime(row[0]);
+                        cell = c.label === 'วันที่' ? f.date : f.time;
+                    } else {
+                        cell = row[c.index] != null ? String(row[c.index]) : '';
+                    }
+                    // CSV escaping: double quotes within a field are escaped by doubling them, then the whole field is enclosed in double quotes
+                    if (cell.includes('"')) cell = cell.replace(/"/g, '""');
+                    if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) cell = `"${cell}"`;
+                    return cell;
+                }).join(','));
+                const csv = '\uFEFF' + [header, ...rows].join('\r\n'); // Add BOM for proper UTF-8 handling in Excel
+                downloadFile(csv, 'data.csv', 'text/csv;charset=utf-8;');
+            } catch (error) {
+                console.error('Export .csv failed:', error);
+                alert('เกิดข้อผิดพลาดในการส่งออกไฟล์ .csv');
+            } finally {
+                setButtonStateWithIcon(buttonElement, false);
+            }
+        }
+
+        function downloadFile(content, fileName, mime) {
+            const blob = new Blob([content], {
+                type: mime
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        document.addEventListener('DOMContentLoaded', async() => {
+            await fetchDataAndDisplay(); // Call new function to handle initial loading message
+
+            // Popup close
+            document.getElementById('closePopup').onclick = () => {
+                document.getElementById('popup').style.display = 'none';
+            };
+            document.getElementById('popup').onclick = e => {
+                if (e.target === e.currentTarget) document.getElementById('popup').style.display = 'none';
+            };
+
+            // Filters & controls (now filter the fullData)
+            ['filterName', 'filterEmployeeId'].forEach(id => {
+                document.getElementById(id).addEventListener('input', () => {
+                    currentPage = 1;
+                    updateTable(fullData);
+                });
+            });
+            ['filterIn', 'filterDuring', 'filterOut', 'startDate', 'endDate', 'startTime', 'endTime', 'rowsPerPage'].forEach(id => {
+                document.getElementById(id).addEventListener('change', () => {
+                    currentPage = 1;
+                    updateTable(fullData);
+                });
+            });
+            document.getElementById('sortDescBtn').onclick = () => {
+                currentPage = 1;
+                updateTable(fullData, false);
+            };
+            document.getElementById('sortAscBtn').onclick = () => {
+                currentPage = 1;
+                updateTable(fullData, true);
+            };
+            document.getElementById('prevPageBtn').onclick = () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateTable(fullData);
+                }
+            };
+            document.getElementById('nextPageBtn').onclick = () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateTable(fullData);
+                }
+            };
+
+            // Export (pass the button element to the export functions)
+            document.getElementById('exportTxtBtn').onclick = (e) => exportToTxt(filterData(fullData.slice(1)), getSelectedColumns(), e.currentTarget);
+            document.getElementById('exportTxtCustomBtn').onclick = (e) => exportToTxtWithCustomFormat(filterData(fullData.slice(1)), e.currentTarget);
+            document.getElementById('exportCsvBtn').onclick = (e) => exportToCsv(filterData(fullData.slice(1)), getSelectedColumns(), e.currentTarget);
+        });
+    </script>
+</body>
+
+</html>
