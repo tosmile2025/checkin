@@ -258,11 +258,6 @@
       document.getElementById('columnBData').value = row[2] || '';
       document.getElementById('columnCData').value = row[3] || '';
       document.getElementById('columnDData').value = row[4] || '';
-
-      document.getElementById('columnBData').disabled = true;
-      document.getElementById('columnCData').disabled = true;
-      document.getElementById('columnDData').disabled = true;
-
     }
 
     // แสดง/ซ่อนหน้าต่างโหลด
@@ -276,8 +271,14 @@
       } else {
         overlay.classList.remove('flex');
         overlay.classList.add('hidden');
-        //inputs.forEach(input => input.disabled = false);
-        inputs.forEach(input => input.disabled = true);
+        inputs.forEach(input => input.disabled = false);
+        <!-- //Update 2025-09-11 16:30 -->
+        document.getElementById('columnAData').disabled = true;
+        document.getElementById('columnBData').disabled = true;
+        document.getElementById('columnCData').disabled = true;
+        document.getElementById('columnDData').disabled = true;
+        <!-- //Update 2025-09-11 16:30 -->
+
       }
     }
 
@@ -748,4 +749,3 @@
 </body>
 
 </html>
-
